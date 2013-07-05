@@ -1,4 +1,0 @@
-ETLs
-====
-
-ETL scripts
