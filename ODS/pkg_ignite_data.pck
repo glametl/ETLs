@@ -174,70 +174,6 @@ create or replace package body pkg_ignite_data as
          ad_id, author_id, posts_id, start_date, end_date,
          start_date_last_day, start_month,
          end_date_first_day, end_month, posts_group_id)
-      /*with advertiser as
-       (select 'advertiser_imps' as imps_type,
-               advertiser_id,
-               min(campaign_live_date - 5) start_date_id,
-               max(least(coalesce(campaign_close_date + 30, sysdate - 1), sysdate - 1)) end_date_id
-        from   ignite_data.gi_campaign@etlnap
-        group  by advertiser_id),
-      campaign as
-       (select 'campaign_imps' as imps_type,
-               ignite_campaign_id,
-               min(creation_date) as min_creation_date
-        from   ignite_data.gi_posts@etlnap
-        group  by ignite_campaign_id),
-      post as
-       (select 'post_imps' as imps_type, ignite_campaign_id,
-               (campaign_live_date - 5) start_date_id,
-               least(coalesce(campaign_close_date + 30, sysdate - 1), sysdate - 1) end_date_id
-        from   ignite_data.gi_campaign@etlnap)
-      select imps_type, b.ignite_campaign_id,
-             a.advertiser_id, ad_id, author_id, -11,
-             to_number(to_char(start_date_id, 'yyyymmdd')) as start_date,
-             to_number(to_char(end_date_id, 'yyyymmdd')) as end_date,
-             to_number(to_char(last_day(start_date_id), 'yyyymmdd')) as start_date_last_day,
-             to_number(to_char(start_date_id, 'yyyymm')) as start_month,
-             to_number(to_char(trunc(end_date_id, 'mm'), 'yyyymmdd')) as end_date_first_day,
-             to_number(to_char(end_date_id, 'yyyymm')) as end_month,
-             -11
-      from   advertiser a,
-             ignite_data.gi_campaign@etlnap b,
-             ignite_data.gi_posts@etlnap c,
-             ignite_data.gi_posts_group@etlnap d
-      where  a.advertiser_id = b.advertiser_id
-      and    b.ignite_campaign_id = c.ignite_campaign_id
-      and    b.ignite_campaign_id = d.ignite_campaign_id
-      and    c.posts_group_id = d.posts_group_id
-      union all
-      select imps_type, a.ignite_campaign_id, -11, ad_id,
-             author_id, -11,
-             to_number(to_char(min_creation_date, 'yyyymmdd')) as start_date,
-             -11 as end_date,
-             to_number(to_char(last_day(min_creation_date), 'yyyymmdd')) as start_date_last_day,
-             to_number(to_char(min_creation_date, 'yyyymm')) as start_month,
-             -11 as end_date_first_day, -11 as end_month,
-             b.posts_group_id
-      from   campaign a, ignite_data.gi_posts@etlnap b,
-             ignite_data.gi_posts_group@etlnap c
-      where  a.ignite_campaign_id = b.ignite_campaign_id
-      and    a.ignite_campaign_id = c.ignite_campaign_id
-      and    b.posts_group_id = c.posts_group_id
-      union all
-      select imps_type, a.ignite_campaign_id, -11, ad_id,
-             author_id, posts_id,
-             to_number(to_char(start_date_id, 'yyyymmdd')) as start_date,
-             to_number(to_char(end_date_id, 'yyyymmdd')) as end_date,
-             to_number(to_char(last_day(start_date_id), 'yyyymmdd')) as start_date_last_day,
-             to_number(to_char(start_date_id, 'yyyymm')) as start_month,
-             to_number(to_char(trunc(end_date_id, 'mm'), 'yyyymmdd')) as end_date_first_day,
-             to_number(to_char(end_date_id, 'yyyymm')) as end_month,
-             b.posts_group_id
-      from   post a, ignite_data.gi_posts@etlnap b,
-             ignite_data.gi_posts_group@etlnap c
-      where  a.ignite_campaign_id = b.ignite_campaign_id
-      and    a.ignite_campaign_id = c.ignite_campaign_id
-      and    b.posts_group_id = c.posts_group_id;*/
         with max_run_ignite as
          (select to_date(max(process_date), 'yyyymmdd') + 10 as max_date
           from   daily_process_log
@@ -248,7 +184,6 @@ create or replace package body pkg_ignite_data as
                  min(campaign_live_date - 5) start_date_id,
                  max(least(coalesce(campaign_close_date + 30, sysdate - 1), sysdate - 1)) end_date_id
           from   ignite_data.gi_campaign@etlnap
-          --where  advertiser_id = 50002527
           group  by advertiser_id),
         campaign as
          (select 'campaign_imps' as imps_type,
@@ -258,6 +193,7 @@ create or replace package body pkg_ignite_data as
           group  by ignite_campaign_id),
         post as
          (select 'post_imps' as imps_type, ignite_campaign_id,
+                 advertiser_id,
                  (campaign_live_date - 5) start_date_id,
                  least(coalesce(campaign_close_date + 30, sysdate - 1), sysdate - 1) end_date_id
           from   ignite_data.gi_campaign@etlnap),
@@ -383,7 +319,7 @@ create or replace package body pkg_ignite_data as
         and    a.ignite_campaign_id = c.ignite_campaign_id
         and    b.posts_group_id = c.posts_group_id
         -- this is temparory fix for social metrics as we are not doing with the imps approach
-        union all
+        /*union all
         select distinct 'advertiser_metrics' as imps_type,
                         b.ignite_campaign_id,
                         a.advertiser_id, null as ad_id,
@@ -396,7 +332,7 @@ create or replace package body pkg_ignite_data as
                         null as start_month,
                         null as end_date_first_day,
                         null as end_month, -11
-                        --c.posts_group_id
+        --c.posts_group_id
         from   advertiser a,
                ignite_data.gi_campaign@etlnap b,
                ignite_data.gi_posts@etlnap c,
@@ -404,10 +340,10 @@ create or replace package body pkg_ignite_data as
         where  a.advertiser_id = b.advertiser_id
         and    b.ignite_campaign_id = c.ignite_campaign_id
         and    b.ignite_campaign_id = d.ignite_campaign_id
-        and    c.posts_group_id = d.posts_group_id
+        and    c.posts_group_id = d.posts_group_id*/
         union all
         select 'post_metrics' imps_type,
-               a.ignite_campaign_id, null as advertiser_id,
+               a.ignite_campaign_id, advertiser_id,
                null as ad_id, author_id, posts_id,
                to_number(to_char(start_date_id, 'yyyymmdd')) as start_date,
                to_number(to_char(end_date_id, 'yyyymmdd')) as end_date,
@@ -867,21 +803,6 @@ create or replace package body pkg_ignite_data as
       execute immediate 'analyze table ignite_total_impressions estimate statistics';
       pkg_log_process.log_process(p_run_id, p_process_date, l_process_name, 'UC', l_cnt);
     end if;
-    if upper(p_process_name) = 'PROCESS' then
-      execute immediate 'truncate table ignite_total_imps_verify';
-      insert /*+ append */
-      into ignite_total_imps_verify
-        (date_id, ignite_campaign_id, start_date, end_date,
-         ad_id, affiliate_id, advertiser_id,
-         total_impressions, total_clicks, posts_id,
-         posts_group_id, imps_type)
-        select date_id, ignite_campaign_id, start_date,
-               end_date, ad_id, affiliate_id, advertiser_id,
-               total_impressions, total_clicks, posts_id,
-               posts_group_id, imps_type
-        from   ignite_total_impressions;
-      commit;
-    end if;
   end;
 
   procedure load_social_metrics
@@ -957,92 +878,19 @@ create or replace package body pkg_ignite_data as
     if pkg_log_process.is_not_complete(p_run_id, p_process_date, l_process_name) then
       pkg_log_process.log_process(p_run_id, p_process_date, l_process_name, 'I');
       l_process_name := p_process_name || '-' ||
-                        'ignite_advertiser_metrics';
-      if pkg_log_process.is_not_complete(p_run_id, p_process_date, l_process_name) then
-        pkg_log_process.log_process(p_run_id, p_process_date, l_process_name, 'I');
-        execute immediate 'truncate table ignite_total_metrics ';
-        /*insert \*+ append *\
-        into ignite_total_metrics
-          (date_id, advertiser_id, start_date, end_date,
-           type, val, ct_reach, imps_type)
-          select p_process_date, advertiser_id, start_date,
-                 end_date, type, sum(value) val,
-                 sum(coalesce(reach, 0)) ct_reach,
-                 'advertiser_metrics' as imps_type
-          from   ignite_social_metrics_daily a,
-                 (select distinct advertiser_id,
-                                   ignite_campaign_id,
-                                   start_date, end_date,
-                                   imps_type
-                   from   ignite_metadata
-                   where  imps_type = 'advertiser_imps') b
-          where  date_id >= start_date
-          and    date_id <= end_date
-          and    campaign_id = ignite_campaign_id
-          and    imps_type = 'advertiser_imps'
-          group  by advertiser_id, start_date, end_date,
-                    type;*/
-        insert /*+ append */
-        into ignite_total_metrics
-          (date_id, advertiser_id, /*ignite_campaign_id,*/
-           start_date, end_date, type, val, ct_reach,
-           imps_type)
-          select p_process_date, advertiser_id,
-                 /*ignite_campaign_id,*/ start_date, end_date,
-                 type, sum(value) val,
-                 sum(coalesce(reach, 0)) ct_reach,
-                 'advertiser_metrics' as imps_type
-          from   ignite_social_metrics_daily a,
-                 ignite_metadata b
-          where  date_id >= start_date
-          and    date_id <= end_date
-          and    campaign_id = ignite_campaign_id
-          --and    post_id = posts_id
-          and    imps_type = 'advertiser_metrics'
-          group  by advertiser_id, /*ignite_campaign_id,*/
-                    start_date, end_date, type;
-        l_cnt := sql%rowcount;
-        commit;
-        pkg_log_process.log_process(p_run_id, p_process_date, l_process_name, 'UC', l_cnt);
-      end if;
-      ---
-      l_process_name := p_process_name || '-' ||
                         'ignite_url_metrics';
       if pkg_log_process.is_not_complete(p_run_id, p_process_date, l_process_name) then
         pkg_log_process.log_process(p_run_id, p_process_date, l_process_name, 'I');
-        -- no 'truncate table ignite_total_metrics' because it is used in previous step;
-        /*insert \*+ append *\
-        into ignite_total_metrics
-          (date_id, ignite_campaign_id, start_date,
-           end_date, posts_group_id, posts_id, author_id,
-           url, type, val, ct_reach, imps_type)
-          select p_process_date, ignite_campaign_id,
-                 start_date, end_date, a.post_group_id,
-                 a.post_id, a.author_id, url, type,
-                 sum(value) val,
-                 sum(coalesce(reach, 0)) ct_reach,
-                 'url_metrics' as imps_type
-          from   ignite_social_metrics_daily a,
-                 ignite_metadata b
-          where  date_id >= start_date
-          and    date_id <= end_date
-          and    a.campaign_id = ignite_campaign_id
-          and    a.post_id = b.posts_id
-          and    a.post_group_id = b.posts_group_id
-          and    a.author_id = b.author_id
-          and    imps_type = 'post_imps'
-          group  by ignite_campaign_id, start_date, end_date,
-                    a.post_group_id, a.post_id, a.author_id,
-                    url, type;*/
+        execute immediate 'truncate table ignite_total_metrics ';
         insert /*+ append */
         into ignite_total_metrics
-          (date_id, ignite_campaign_id, start_date,
-           end_date, posts_group_id, posts_id, author_id,
-           url, type, val, ct_reach, imps_type)
+          (date_id, ignite_campaign_id, advertiser_id,
+           start_date, end_date, posts_group_id, posts_id,
+           author_id, url, type, val, ct_reach, imps_type)
           select p_process_date, ignite_campaign_id,
-                 start_date, end_date, a.post_group_id,
-                 a.post_id, a.author_id, url, type,
-                 sum(value) val,
+                 advertiser_id, start_date, end_date,
+                 a.post_group_id, a.post_id, a.author_id,
+                 url, type, sum(value) val,
                  sum(coalesce(reach, 0)) ct_reach,
                  'url_metrics' as imps_type
           from   ignite_social_metrics_daily a,
@@ -1054,9 +902,9 @@ create or replace package body pkg_ignite_data as
           and    a.post_group_id = b.posts_group_id
           and    a.author_id = b.author_id
           and    imps_type = 'post_metrics'
-          group  by ignite_campaign_id, start_date, end_date,
-                    a.post_group_id, a.post_id, a.author_id,
-                    url, type;
+          group  by ignite_campaign_id, advertiser_id,
+                    start_date, end_date, a.post_group_id,
+                    a.post_id, a.author_id, url, type;
         l_cnt := sql%rowcount;
         commit;
         pkg_log_process.log_process(p_run_id, p_process_date, l_process_name, 'UC', l_cnt);
@@ -1070,17 +918,18 @@ create or replace package body pkg_ignite_data as
         -- no 'truncate table ignite_total_metrics' because it is used in previous step;
         insert /*+ append */
         into ignite_total_metrics
-          (date_id, ignite_campaign_id, start_date,
-           end_date, posts_group_id, posts_id, author_id,
-           url, type, val, ct_reach, imps_type)
+          (date_id, ignite_campaign_id, advertiser_id,
+           start_date, end_date, posts_group_id, posts_id,
+           author_id, url, type, val, ct_reach, imps_type)
           select p_process_date, ignite_campaign_id,
-                 start_date, end_date, a.post_group_id,
-                 a.post_id, a.author_id, url, type,
-                 sum(value) val,
+                 advertiser_id, start_date, end_date,
+                 a.post_group_id, a.post_id, a.author_id,
+                 url, type, sum(value) val,
                  sum(coalesce(reach, 0)) ct_reach,
                  'url_metrics' as imps_type
           from   ignite_social_metrics_daily a,
-                 (select distinct start_date, end_date,
+                 (select distinct advertiser_id, start_date,
+                                   end_date,
                                    ignite_campaign_id,
                                    posts_group_id, imps_type
                    from   ignite_metadata
@@ -1094,9 +943,9 @@ create or replace package body pkg_ignite_data as
           and    imps_type = 'post_metrics'
                 --- only select type = twitter_hashtag records as others are already inserted
           and    type = 'twitter_hashtag'
-          group  by ignite_campaign_id, start_date, end_date,
-                    a.post_group_id, a.post_id, a.author_id,
-                    url, type;
+          group  by ignite_campaign_id, advertiser_id,
+                    start_date, end_date, a.post_group_id,
+                    a.post_id, a.author_id, url, type;
         l_cnt := sql%rowcount;
         commit;
         pkg_log_process.log_process(p_run_id, p_process_date, l_process_name, 'UC', l_cnt);
@@ -1109,20 +958,74 @@ create or replace package body pkg_ignite_data as
         -- no 'truncate table ignite_total_metrics' because it is used in previous step;
         insert /*+ append */
         into ignite_total_metrics
-          (date_id, ignite_campaign_id, start_date,
-           end_date, type, val, ct_reach, imps_type)
-          select date_id, ignite_campaign_id, start_date,
-                 end_date, type, sum(val) val,
+          (date_id, ignite_campaign_id, advertiser_id,
+           start_date, end_date, type, val, ct_reach,
+           imps_type)
+          select date_id, ignite_campaign_id, advertiser_id,
+                 start_date, end_date, type, sum(val) val,
                  sum(ct_reach) ct_reach,
                  'campaign_metrics' as imps_type
           from   ignite_total_metrics
           where  imps_type = 'url_metrics'
-          group  by date_id, ignite_campaign_id, start_date,
-                    end_date, type;
+          group  by date_id, ignite_campaign_id,
+                    advertiser_id, start_date, end_date,
+                    type;
         l_cnt := sql%rowcount;
         commit;
         pkg_log_process.log_process(p_run_id, p_process_date, l_process_name, 'UC', l_cnt);
       end if;
+      --
+      l_process_name := p_process_name || '-' ||
+                        'ignite_advertiser_metrics';
+      if pkg_log_process.is_not_complete(p_run_id, p_process_date, l_process_name) then
+        pkg_log_process.log_process(p_run_id, p_process_date, l_process_name, 'I');
+        -- no 'truncate table ignite_total_metrics' because it is used in previous step;
+        insert /*+ append */
+        into ignite_total_metrics
+          (date_id, advertiser_id, ignite_campaign_id,
+           start_date, end_date, type, val, ct_reach,
+           imps_type)
+          select date_id, advertiser_id, ignite_campaign_id,
+                 start_date, end_date, type, sum(val) val,
+                 sum(ct_reach) ct_reach,
+                 'advertiser_metrics' as imps_type
+          from   ignite_total_metrics
+          where  imps_type = 'url_metrics'
+          group  by date_id, advertiser_id,
+                    ignite_campaign_id, start_date, end_date,
+                    type;
+        l_cnt := sql%rowcount;
+        commit;
+        pkg_log_process.log_process(p_run_id, p_process_date, l_process_name, 'UC', l_cnt);
+      end if;
+      /*l_process_name := p_process_name || '-' ||
+                        'ignite_advertiser_metrics';
+      if pkg_log_process.is_not_complete(p_run_id, p_process_date, l_process_name) then
+        pkg_log_process.log_process(p_run_id, p_process_date, l_process_name, 'I');
+        execute immediate 'truncate table ignite_total_metrics ';
+        insert \*+ append *\
+        into ignite_total_metrics
+          (date_id, advertiser_id, \*ignite_campaign_id,*\
+           start_date, end_date, type, val, ct_reach,
+           imps_type)
+          select p_process_date, advertiser_id,
+                 \*ignite_campaign_id,*\ start_date,
+                 end_date, type, sum(value) val,
+                 sum(coalesce(reach, 0)) ct_reach,
+                 'advertiser_metrics' as imps_type
+          from   ignite_social_metrics_daily a,
+                 ignite_metadata b
+          where  date_id >= start_date
+          and    date_id <= end_date
+          and    campaign_id = ignite_campaign_id
+                --and    post_id = posts_id
+          and    imps_type = 'advertiser_metrics'
+          group  by advertiser_id, \*ignite_campaign_id,*\
+                    start_date, end_date, type;
+        l_cnt := sql%rowcount;
+        commit;
+        pkg_log_process.log_process(p_run_id, p_process_date, l_process_name, 'UC', l_cnt);
+      end if;*/
       l_process_name := p_process_name || '-' ||
                         'ignite_total_metrics';
       execute immediate 'analyze table ignite_total_metrics estimate statistics';
